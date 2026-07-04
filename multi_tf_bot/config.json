@@ -1,0 +1,33 @@
+{
+  "symbol": "MAGMAUSDT",
+  "timeframes": ["1m", "3m", "5m", "15m", "30m", "1h", "4h"],
+  "tf_weights": {
+    "1m": 0.05,
+    "3m": 0.08,
+    "5m": 0.12,
+    "15m": 0.18,
+    "30m": 0.17,
+    "1h": 0.22,
+    "4h": 0.18
+  },
+  "confluence_thresholds": {
+    "strong": 0.60,
+    "moderate": 0.45,
+    "weak": 0.30
+  },
+  "conflict_penalty": 0.5,
+  "alignment_bonus": 1.15,
+  "min_tf_aligned": 2,
+  "st_line_tolerance_pct": 0.003,
+  "account_balance": 10000,
+  "leverage": 10,
+  "mode": "LONG_ONLY",
+  "periodic_check_interval_candles": 1,
+  "min_confluence_for_hold": 0.25,
+  "max_conflict_tolerance": 0.3,
+  "dashboard_enabled": true,
+  "dashboard_port": 8083,
+  "state_export_dir": "data/multi_tf_state",
+  "warmup_min_tfs": 3,
+  "log_level": "INFO"
+}
