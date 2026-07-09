@@ -1,0 +1,94 @@
+================================================================================
+ CHAT 5 UPDATE — Multi-TF Confluence Bot Fixes
+================================================================================
+ Tanggal : 2026-07-04
+ Fokus   : 4 Fix dari hasil audit (P0, P1, P2)
+================================================================================
+
+FILE DIUBAH:
+  1. multi_tf_bot/models.py
+  2. multi_tf_bot/multi_tf_decision.py
+  3. multi_tf_bot/trade_executor.py
+  4. multi_tf_bot/multi_tf_orchestrator.py
+  5. multi_tf_bot/confluence_engine.py
+  6. multi_tf_bot/dashboard_server.py
+  7. requirements.txt (BARU)
+
+================================================================================
+FIX P0 — REAL GUARD LINE ID
+================================================================================
+MASALAH: ExitMonitor gagal karena ID "MULTI_TF_CONFLUENCE" tidak ditemukan
+         di database ST Lines (support_line_id hardcoded).
+
+PERUBAHAN:
+
+--- multi_tf_bot/models.py ---
+  - TradeDecision: tambah field guard_line_id dan guard_line_tf
+  - TradeDecision.to_dict(): tambah guard_id dan guard_tf
+
+--- multi_tf_bot/multi_tf_decision.py ---
+  - _calculate_levels(): return 6 values (+guard_line_id, +guard_line_tf)
+  - Cari real ST line ID dari TF dominan (4h -> 1h) dengan tolerance 0.05%
+  - evaluate(): pass guard_line_id dan guard_line_tf ke TradeDecision
+
+--- multi_tf_bot/trade_executor.py ---
+  - _decision_to_proposal(): support_line_id = decision.guard_line_id
+  - Fallback: "MTF_FALLBACK_{direction}" jika guard_line_id None
+
+================================================================================
+FIX P1 — ASYNC PROCESSING
+================================================================================
+MASALAH: Pipeline processing blocking event loop WebSocket.
+
+PERUBAHAN:
+
+--- multi_tf_bot/multi_tf_orchestrator.py ---
+  - _on_candle_received() -> sync entry, ensure_future ke async handler
+  - _async_process_candle() -> pipeline via asyncio.to_thread
+  - _run_full_pipeline() -> juga via asyncio.to_thread
+  - Hapus self._last_decision (redundan, pakai self.state.last_decision)
+  - Hapus unused import: Dict, TradeDecision
+  - _on_trade_closed(): pakai last_dec local variable
+
+================================================================================
+FIX P1 — NEUTRAL BIAS (MACD+OI OVERRIDE)
+================================================================================
+MASALAH: Bot terlalu sering reject trade saat SIDEWAY padahal MACD+OI kuat.
+
+PERUBAHAN:
+
+--- multi_tf_bot/confluence_engine.py ---
+  - _tf_direction(): tambah SIDEWAY override
+    - Jika SIDEWAY + MACD BULLISH + OI INCREASING -> BULLISH
+    - Jika SIDEWAY + MACD BEARISH + OI INCREASING -> BEARISH
+
+================================================================================
+FIX P2 — ASYNC DASHBOARD
+================================================================================
+MASALAH: http.server blocking, rawan BrokenPipeError.
+
+PERUBAHAN:
+
+--- multi_tf_bot/dashboard_server.py ---
+  - REWRITE: http.server -> aiohttp
+  - DashboardHandler -> handle_root() + handle_api() async handlers
+  - start_dashboard_server(): AppRunner dengan handle_signals=False
+  - Start via asyncio.ensure_future() (tidak pakai thread)
+
+================================================================================
+FILE BARU
+================================================================================
+
+--- requirements.txt ---
+  websockets
+  aiohttp
+
+================================================================================
+VERIFIKASI
+================================================================================
+Semua modul import OK.
+7 test assertions passed (TradeDecision fields, guard line ID, fallback,
+MACD+OI override, UPTREND, SIDEWAY no override, dashboard import).
+Bot running 60 detik tanpa error.
+
+================================================================================
